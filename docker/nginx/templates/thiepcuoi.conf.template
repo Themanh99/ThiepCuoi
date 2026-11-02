@@ -1,0 +1,129 @@
+# Cấu hình nginx cho Ảnh Cưới. ${SERVER_NAME} lấy từ file .env lúc container khởi động.
+
+server_tokens off;
+
+# Giới hạn theo IP. Chỉ tính POST (khóa rỗng = không đếm) để xem trang không bị ảnh hưởng.
+map $request_method $post_ip {
+    POST    $binary_remote_addr;
+    default "";
+}
+limit_req_zone  $post_ip            zone=login:10m  rate=10r/m;
+limit_req_zone  $post_ip            zone=forms:10m  rate=30r/m;
+limit_req_zone  $post_ip            zone=upload:10m rate=5r/s;
+limit_conn_zone $binary_remote_addr zone=perip:10m;
+limit_req_status  429;
+limit_conn_status 429;
+
+# Chống kết nối treo (slowloris)
+client_header_timeout 15s;
+client_body_timeout   30s;
+send_timeout          60s;
+large_client_header_buffers 4 8k;
+
+# TLS
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+ssl_prefer_server_ciphers off;
+ssl_session_cache   shared:SSL:10m;
+ssl_session_timeout 1d;
+ssl_session_tickets off;
+
+# Host lạ (quét IP, giả domain): đóng kết nối, không trả gì
+server {
+    listen 8080 default_server;
+    server_name _;
+    return 444;
+}
+server {
+    listen 8443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+}
+
+server {
+    listen 8080;
+    server_name ${SERVER_NAME};
+
+    # Certbot webroot, dùng khi gia hạn chứng chỉ
+    location /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+    location / {
+        return 301 https://$host:${HTTPS_PORT}$request_uri;
+    }
+}
+
+server {
+    listen 8443 ssl;
+    http2 on;
+    server_name ${SERVER_NAME};
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    client_max_body_size 70m;
+    keepalive_timeout 30s;
+    limit_conn perip 60;
+
+    if ($request_method !~ ^(GET|HEAD|POST)$) {
+        return 405;
+    }
+
+    # add_header chỉ đặt ở đây: khối location có add_header riêng sẽ làm mất toàn bộ các dòng này
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "same-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" always;
+
+    # Cài đặt lần đầu chỉ qua cổng local bên dưới
+    location ~* ^/+(index\.php/+)?setup(/|$) {
+        return 403;
+    }
+    # /health/csrf là API của ứng dụng; riêng trang /health không cần lộ ra ngoài
+    location = /health {
+        return 404;
+    }
+    location ~ /\. {
+        return 404;
+    }
+    location ~* \.(php|db|sqlite3?|sql|sh|bat|ini|env|log|bak|ya?ml|key|pem|lock)$ {
+        return 404;
+    }
+
+    location = /admin/login {
+        limit_req zone=login burst=5 nodelay;
+        include /etc/nginx/proxy.conf;
+    }
+    location ~ ^/(unlock|a/[^/]+/unlock|loi-chuc|xac-nhan)$ {
+        limit_req zone=forms burst=10 nodelay;
+        include /etc/nginx/proxy.conf;
+    }
+    location = /gui-anh/upload {
+        limit_req zone=upload burst=30 nodelay;
+        include /etc/nginx/proxy.conf;
+    }
+    location / {
+        include /etc/nginx/proxy.conf;
+    }
+}
+
+# Cổng cài đặt: compose chỉ publish ở 127.0.0.1 của server, vào bằng SSH tunnel.
+# Không gửi X-Real-IP nên ứng dụng coi là truy cập trực tiếp và cho mở /setup.
+server {
+    listen 8081;
+    server_name _;
+
+    client_max_body_size 70m;
+
+    location / {
+        proxy_pass http://172.30.86.2:8686;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP "";
+        proxy_set_header X-Forwarded-Proto "";
+        proxy_set_header CF-Connecting-IP "";
+        proxy_set_header CF-Ray "";
+    }
+}

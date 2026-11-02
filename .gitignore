@@ -1,0 +1,20 @@
+# Dữ liệu sinh ra khi chạy trên máy người dùng — không bao giờ đưa lên repo
+database/*
+!database/.gitkeep
+!database/sessions/
+database/sessions/*
+!database/sessions/.gitkeep
+cloudflared/*
+!cloudflared/.gitkeep
+!cloudflared/cloudflared.exe
+uploads/photos/*
+uploads/media/*
+!uploads/**/index.html
+application/logs/*
+!application/logs/index.html
+.DS_Store
+.env
+docker/nginx/certs/*
+!docker/nginx/certs/.gitkeep
+docker/nginx/acme/*
+!docker/nginx/acme/.gitkeep

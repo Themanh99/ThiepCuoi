@@ -1,0 +1,39 @@
+.git
+.github
+.gitignore
+.gitattributes
+.DS_Store
+
+# Thư mục PHP Windows (không cần trong Docker)
+php/
+
+# cloudflared: không dùng; loại cả token/secret nếu từng chạy trên máy này
+cloudflared/*
+
+# Script chạy trực tiếp (không dùng trong Docker)
+run_window.bat
+run_mac.sh
+reset_win.bat
+reset_mac.sh
+keepalive_win.bat
+keepalive_mac.sh
+
+# Dữ liệu runtime (mount volume)
+database/*
+application/logs/*
+
+# Upload do người dùng tạo
+uploads/photos/*
+uploads/media/*
+
+# Docker files chính nó
+Dockerfile
+docker-compose.yml
+.dockerignore
+.env
+.env.example
+docker/nginx
+
+# Docs
+HUONG-DAN-CAI-DAT.txt
+README.md

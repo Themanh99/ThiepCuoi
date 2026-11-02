@@ -1,0 +1,107 @@
+# ─── Ảnh Cưới – Docker Compose (tự chủ, không gọi ra ngoài) ────────────────────
+# Lần đầu: cp .env.example .env, sửa domain, đặt chứng chỉ vào docker/nginx/certs
+# Chạy:  docker compose up -d --build
+# Dừng:  docker compose down
+# Xem log: docker compose logs -f
+#
+# Internet -> nginx (mạng edge + anhcuoi_net) -> anhcuoi (chỉ anhcuoi_net, internal).
+# Cài đặt lần đầu: ssh -L 8686:127.0.0.1:8686 user@server rồi mở http://localhost:8686
+# ───────────────────────────────────────────────────────────────────────────────
+
+services:
+  anhcuoi:
+    build: .
+    image: thiepcuoi:local
+    container_name: anhcuoi
+    restart: unless-stopped
+    environment:
+      - ANHCUOI_PORT=8686
+      - ANHCUOI_BIND=0.0.0.0
+      - PHP_CLI_SERVER_WORKERS=4
+      # Tắt tunnel, phần domain và cập nhật trong ứng dụng
+      - ANHCUOI_HOSTED=1
+      # Lưới an toàn: nếu còn nhánh nào gọi API thì chỉ tới cổng đóng trong container
+      - ANHCUOI_CLOUD_BASE=http://127.0.0.1:9
+      - ANHCUOI_UPDATE_URL=http://127.0.0.1:9/latest.json
+    networks:
+      anhcuoi_net:
+        ipv4_address: 172.30.86.2
+    dns:
+      - 127.0.0.1
+    volumes:
+      # Dữ liệu bền vững – giữ nguyên khi build lại image
+      - anhcuoi_database:/var/www/anhcuoi/database
+      - anhcuoi_uploads:/var/www/anhcuoi/uploads
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+      - /var/www/anhcuoi/application/logs:size=64m,uid=10001,gid=10001,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8686/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03
+    container_name: anhcuoi-nginx
+    restart: unless-stopped
+    depends_on:
+      anhcuoi:
+        condition: service_healthy
+    environment:
+      - SERVER_NAME=${SERVER_NAME:?Tao file .env tu .env.example}
+      - HTTPS_PORT=${HTTPS_PORT:-443}
+    ports:
+      - "${HTTP_PORT:-80}:8080"
+      - "${HTTPS_PORT:-443}:8443"
+      # Chỉ cho SSH tunnel, phục vụ cài đặt lần đầu
+      - "127.0.0.1:8686:8081"
+    networks:
+      edge:
+      anhcuoi_net:
+        ipv4_address: 172.30.86.3
+    dns:
+      - 127.0.0.1
+    volumes:
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+      - ./docker/nginx/proxy.conf:/etc/nginx/proxy.conf:ro
+      - ./docker/nginx/acme:/var/www/acme:ro
+      - ${CERT_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,uid=101,gid=101,mode=0700
+      - /etc/nginx/conf.d:size=1m,uid=101,gid=101,mode=0755
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8081/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+networks:
+  edge:
+  anhcuoi_net:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.86.0/24
+
+volumes:
+  anhcuoi_database:
+    driver: local
+  anhcuoi_uploads:
+    driver: local
