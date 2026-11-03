@@ -59,7 +59,7 @@
 [data-theme="hoangkim"] {
   --accent: #8f6d33; --accent-2: #d9c49a; --gold: #b8964f; --soft: #f1eadc; --ink: #2b2721; --muted: #6b6255; --page: #f8f4ec;
   --nav-bg: #f8f4ec; --nav-ink: #2b2721;
-  --f-head: "Cormorant Garamond", Georgia, serif; --f-name: "Cormorant Garamond", Georgia, serif;
+  --f-head: "Cormorant Garamond", Georgia, serif; --f-name: "Dancing Script", Georgia, serif;
   --f-body: "EB Garamond", Georgia, serif; --f-ui: "Montserrat", system-ui, sans-serif;
   --name-style: italic; --name-size: clamp(3.1rem, 6.6vw, 5.8rem); --name-w: 500;
   --paper: #fffdf8; --line: #e6dcc6; --bg: #f8f4ec;

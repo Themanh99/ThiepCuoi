@@ -11,10 +11,10 @@ if ($ac_real_ip !== '') {
 }
 unset($ac_real_ip);
 
-// Trình duyệt chỉ được tải tài nguyên từ chính domain này (chặn cả iframe Google Maps).
+// Trình duyệt chỉ được tải tài nguyên từ chính domain này, riêng iframe được mở cho Google Maps (maps.google.com chuyển hướng sang www.google.com).
 // JS của ứng dụng tự giải mã bằng eval nên phải giữ unsafe-eval.
 if (PHP_SAPI === 'cli-server') {
     header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
         . "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; "
-        . "connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
+        . "connect-src 'self'; frame-src 'self' https://maps.google.com https://www.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
 }

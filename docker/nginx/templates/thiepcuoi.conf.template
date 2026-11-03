@@ -9,7 +9,6 @@ map $request_method $post_ip {
 }
 limit_req_zone  $post_ip            zone=login:10m  rate=10r/m;
 limit_req_zone  $post_ip            zone=forms:10m  rate=30r/m;
-limit_req_zone  $post_ip            zone=upload:10m rate=5r/s;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 limit_req_status  429;
 limit_conn_status 429;
@@ -69,13 +68,25 @@ server {
         return 405;
     }
 
+    # Chuỗi này nằm trong PHP đã mã hóa, không sửa được ở ứng dụng nên thay trên HTML trả ra
+    sub_filter 'Nhằm ngày' 'Ngày';
+    sub_filter_once off;
+
     # add_header chỉ đặt ở đây: khối location có add_header riêng sẽ làm mất toàn bộ các dòng này
     add_header Strict-Transport-Security "max-age=31536000" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "same-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self'; frame-src 'self' https://maps.google.com https://www.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" always;
+
+    # Chặn đường vòng qua front controller, nếu không các location rate-limit bên dưới bị né
+    if ($args ~ "^/") {
+        return 404;
+    }
+    location ~* ^/+(index\.php|auth|guest|home)(/|$) {
+        return 404;
+    }
 
     # Cài đặt lần đầu chỉ qua cổng local bên dưới
     location ~* ^/+(index\.php/+)?setup(/|$) {
@@ -92,17 +103,17 @@ server {
         return 404;
     }
 
-    location = /admin/login {
+    location ~ ^/admin/login/*$ {
         limit_req zone=login burst=5 nodelay;
         include /etc/nginx/proxy.conf;
     }
-    location ~ ^/(unlock|a/[^/]+/unlock|loi-chuc|xac-nhan)$ {
+    location ~ ^/(unlock|a/[^/]+/unlock|loi-chuc|xac-nhan)/*$ {
         limit_req zone=forms burst=10 nodelay;
         include /etc/nginx/proxy.conf;
     }
-    location = /gui-anh/upload {
-        limit_req zone=upload burst=30 nodelay;
-        include /etc/nginx/proxy.conf;
+    # Khách không được gửi ảnh: ứng dụng không giới hạn dung lượng tải lên
+    location ~* ^/gui-anh/upload/*$ {
+        return 403;
     }
     location / {
         include /etc/nginx/proxy.conf;
