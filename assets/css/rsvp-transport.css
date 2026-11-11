@@ -1,0 +1,46 @@
+.wd .rsvp-transport {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--ic-line, var(--soft));
+  border-radius: 12px;
+  text-align: left;
+}
+.wd .rsvp-transport[hidden], .wd .rsvp-transport [hidden] { display: none !important; }
+.wd .rsvp-transport legend { padding: 0 6px; font: 600 1rem/1.4 var(--f-ui); }
+.wd .rsvp-transport .rsvp-transport-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.5;
+}
+.wd .rsvp-transport .rsvp-transport-toggle input {
+  position: static;
+  appearance: auto;
+  opacity: 1;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  margin: 1px 0 0;
+  padding: 0;
+  accent-color: var(--ic-accent, var(--accent));
+}
+.wd .rsvp-transport .rsvp-transport-hint { margin: 10px 0; font-size: .875rem; line-height: 1.5; }
+.wd .rsvp-transport [data-shuttle-return] { display: grid; gap: 8px; text-transform: none; letter-spacing: normal; }
+.wd .rsvp-transport select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid var(--ic-line, var(--soft));
+  border-radius: 6px;
+  background: var(--ic-paper, var(--paper, #fff));
+  color: var(--ic-ink, var(--ink));
+  font: inherit;
+  font-size: 16px;
+}
+.wd .rsvp-transport :is(input, select):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
